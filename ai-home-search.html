@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Home Search — powered by Zillapi</title>
+<style>
+  :root{
+    --bg:#f5f6fa;
+    --surface:#ffffff;
+    --border:#e3e6ee;
+    --text:#1b1f2b;
+    --text-muted:#6b7280;
+    --accent:#4338ca;
+    --accent-2:#0891b2;
+    --accent-soft:#eef0ff;
+    --danger:#dc2626;
+    --danger-soft:#fef2f2;
+    --radius:14px;
+    --shadow:0 1px 3px rgba(20,20,43,.06),0 8px 24px rgba(20,20,43,.06);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);min-height:100vh}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+  .brand h1{font-size:18px;margin:0;line-height:1.2}
+  .brand p{margin:0;font-size:12px;color:var(--text-muted)}
+  button.icon-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:38px;height:38px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s}
+  button.icon-btn:hover{background:var(--accent-soft)}
+
+  .hero{background:linear-gradient(135deg,var(--accent) 0%,var(--accent-2) 100%);border-radius:20px;padding:32px 28px;color:#fff;margin-bottom:22px}
+  .hero h2{margin:0 0 6px;font-size:22px}
+  .hero p{margin:0 0 20px;opacity:.9;font-size:14px}
+  .search-row{display:flex;gap:10px}
+  .search-row input{flex:1;border:none;border-radius:12px;padding:14px 16px;font-size:15px;outline:none}
+  .search-row button{border:none;border-radius:12px;padding:0 22px;background:#111827;color:#fff;font-weight:600;cursor:pointer;font-size:14px}
+  .search-row button:disabled{opacity:.6;cursor:default}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:6px 12px;border-radius:999px;font-size:12.5px;cursor:pointer}
+  .chip:hover{background:rgba(255,255,255,.28)}
+
+  .status-line{font-size:13px;color:var(--text-muted);margin:4px 2px 18px;min-height:18px}
+  .status-line.error{color:var(--danger)}
+
+  .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:20px;box-shadow:var(--shadow)}
+  .summary-card .label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);margin-bottom:8px}
+  .summary-card p{margin:0;font-size:14.5px;line-height:1.55;color:var(--text)}
+
+  .results-meta{display:flex;justify-content:space-between;align-items:center;margin:6px 2px 12px;font-size:13px;color:var(--text-muted)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .card .thumb{height:120px;background:linear-gradient(135deg,var(--accent-soft),#f0fdfa);display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--accent);overflow:hidden}
+  .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .card .thumb.card-thumb{cursor:pointer;position:relative}
+  .card .thumb.card-thumb:hover{opacity:.85}
+  .card .thumb.card-thumb.loading{opacity:.5}
+  .card .body{padding:14px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .card .price{font-size:17px;font-weight:700}
+  .card .zestimate{font-size:12px;color:var(--accent-2);font-weight:600;margin-top:-2px}
+  .card .zestimate-none{font-size:11.5px;color:var(--text-muted);margin-top:-2px}
+  .card-actions{display:flex;gap:8px;margin-top:4px}
+  .card .details-btn,.card .map-btn{font-size:11.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:none;border-radius:6px;padding:5px 9px;cursor:pointer}
+  .card .details-btn:disabled,.card .map-btn:disabled{opacity:.6;cursor:default}
+  .filter-preset{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;padding:4px 10px;cursor:pointer}
+  .filter-preset:hover{background:var(--accent);color:white}
+  .card .map-panel{border-radius:8px;overflow:hidden;margin-top:4px}
+  .card .map-panel iframe{width:100%;height:160px;border:0;display:block}
+  .card .map-link{display:block;text-align:center;font-size:11px;color:var(--accent);text-decoration:none;padding:4px 0}
+  .card .map-link:hover{text-decoration:underline}
+  .card .details-panel{font-size:12px;color:var(--text);background:var(--bg);border-radius:8px;padding:8px 10px;margin-top:4px;display:flex;flex-direction:column;gap:4px}
+  .card .details-panel .row{display:flex;justify-content:space-between;gap:8px}
+  .card .details-panel .row .k{color:var(--text-muted)}
+  .card .details-panel .schools{font-size:11.5px;color:var(--text-muted)}
+  .card .details-panel .empty{color:var(--text-muted);font-style:italic}
+  .card .photo-strip{display:flex;gap:6px;overflow-x:auto;padding-top:2px}
+  .card .photo-thumb{width:60px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0;background:var(--border)}
+  .card .photo-thumb:hover{outline:2px solid var(--accent)}
+
+  .lightbox-overlay{position:fixed;inset:0;background:rgba(10,10,15,.92);display:none;align-items:center;justify-content:center;z-index:100}
+  .lightbox-overlay.open{display:flex}
+  .lightbox-img{max-width:88vw;max-height:82vh;border-radius:8px;object-fit:contain}
+  .lightbox-close{position:absolute;top:18px;right:22px;background:none;border:none;color:#fff;font-size:32px;cursor:pointer;line-height:1}
+  .lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:46px;height:46px;border-radius:50%;cursor:pointer}
+  .lightbox-nav:hover{background:rgba(255,255,255,.22)}
+  .lightbox-prev{left:18px}
+  .lightbox-next{right:18px}
+  .lightbox-counter{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.4);padding:4px 12px;border-radius:999px}
+  .card .addr{font-size:13px;color:var(--text-muted);line-height:1.35}
+  .card .facts{font-size:12.5px;color:var(--text);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap}
+  .card .facts span{background:var(--bg);border-radius:6px;padding:3px 7px}
+  .card .badge{align-self:flex-start;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;background:var(--accent-soft);color:var(--accent);padding:3px 8px;border-radius:6px}
+  .card .photo-badge,.card .dom-badge{font-size:10px;color:var(--text-muted);margin-left:4px}
+  .card a.view{margin-top:auto;text-align:center;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;padding-top:8px;border-top:1px solid var(--border)}
+  .card a.view:hover{text-decoration:underline}
+
+  .show-more-btn{border:1px solid var(--border);background:var(--surface);color:var(--accent);font-weight:600;font-size:13.5px;padding:10px 20px;border-radius:10px;cursor:pointer;box-shadow:var(--shadow)}
+  .show-more-btn:hover{background:var(--accent-soft)}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+  .empty-state .big{font-size:36px;margin-bottom:10px}
+
+  .error-banner{background:var(--danger-soft);border:1px solid #fecaca;color:var(--danger);border-radius:12px;padding:12px 16px;font-size:13.5px;margin-bottom:16px}
+  .error-banner code{background:#fff;border:1px solid #fecaca;border-radius:5px;padding:1px 6px;font-size:12px}
+  .warn-banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:12px 16px;font-size:13px;margin-bottom:16px;display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .warn-banner code{background:#fff;border:1px solid #fde68a;border-radius:5px;padding:2px 7px;font-size:12px}
+  .warn-banner button{border:1px solid #fde68a;background:#fff;color:#92400e;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer}
+
+  .test-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .test-row button{border:1px solid var(--border);background:var(--bg);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer}
+  .test-result{font-size:12px}
+  .test-result.ok{color:#059669}
+  .test-result.fail{color:var(--danger)}
+
+  /* Settings modal */
+  .overlay{position:fixed;inset:0;background:rgba(15,17,26,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:16px;max-width:440px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal h3{margin:0 0 4px}
+  .modal .sub{font-size:12.5px;color:var(--text-muted);margin:0 0 18px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px}
+  .field input,.field select{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 10px;font-size:13.5px;outline:none}
+  .field .hint{font-size:11px;color:var(--text-muted);margin-top:4px}
+  .modal-actions{display:flex;gap:10px;margin-top:18px}
+  .modal-actions button{flex:1;padding:10px;border-radius:9px;border:none;font-weight:600;cursor:pointer;font-size:13.5px}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border) !important}
+
+  .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  .spinner-accent{border-color:rgba(67,56,202,.2);border-top-color:var(--accent)}
+  .status-line{display:flex;align-items:center}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .skeleton{background:linear-gradient(90deg,#eee 25%,#f5f5f5 37%,#eee 63%);background-size:400% 100%;animation:shine 1.4s ease infinite}
+  @keyframes shine{0%{background-position:100% 0}100%{background-position:0 0}}
+
+  .dom-radio-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .dom-radio-group label{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;margin:0;color:var(--text)}
+  .dom-radio-group input[type="radio"]{cursor:pointer;margin:0;accent-color:var(--accent)}
+
+  .search-row{display:flex;gap:10px;align-items:center}
+  #voiceBtn{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;width:auto;min-width:44px;cursor:pointer;font-size:18px;transition:.15s;display:flex;align-items:center;justify-content:center}
+  #voiceBtn:hover{background:var(--accent-soft)}
+  #voiceBtn.listening{background:var(--accent);color:#fff;animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+  .voice-modal{position:fixed;inset:0;background:rgba(15,17,26,.92);display:none;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:24px;padding:20px}
+  .voice-modal.open{display:flex}
+  .voice-modal-card{background:var(--surface);border-radius:16px;padding:32px;text-align:center;max-width:500px}
+  .voice-modal-card h3{margin:0 0 12px;font-size:18px}
+  .voice-modal-card p{margin:0 0 8px;color:var(--text-muted);font-size:14px;line-height:1.5}
+  .voice-modal-card .voice-text{font-size:16px;font-weight:600;color:var(--accent);margin:16px 0}
+  .voice-modal-card button{margin-top:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600}
+  .voice-modal-card button:hover{opacity:.9}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">⌂</div>
+      <div>
+        <h1>AI Home Search</h1>
+        <p>Natural language search over Zillapi listing data</p>
+      </div>
+    </div>
+    <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+  </header>
+
+  <div class="hero">
+    <h2>Describe the home you want.</h2>
+    <p>Claude turns your sentence into search filters, Zillapi finds the listings, Claude summarizes the results.</p>
+    <div class="search-row">
+      <input id="queryInput" type="text" placeholder="e.g. 3 bed houses in Austin under $500k with a garage" autocomplete="off">
+      <button id="voiceBtn" title="Search by voice">🎤</button>
+      <button id="searchBtn">Search</button>
+    </div>
+    <div class="chips">
+      <div class="chip" data-q="3 bedroom houses in Austin, TX under $500,000">3bd houses in Austin under $500k</div>
+      <div class="chip" data-q="Condos for sale in Miami, FL with a pool">Miami condos with a pool</div>
+      <div class="chip" data-q="Waterfront homes near Seattle, WA under $1.5M">Waterfront near Seattle</div>
+      <div class="chip" data-q="2 bed apartments for rent in Chicago, IL under $2500/month">Chicago rentals under $2500</div>
+    </div>
+  </div>
+
+  <div id="fileWarning"></div>
+  <div class="status-line" id="statusLine"></div>
+  <div id="errorBanner"></div>
+  <div id="summaryContainer"></div>
+  <div id="resultsMeta"></div>
+  <div id="filterBar" style="display:none;margin:12px 0;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="undervaluedFilter" style="cursor:pointer">
+        <span>Undervalued (price &lt; Zestimate)</span>
+      </label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--text-muted);font-size:12px">Days on Market:</span>
+        <div class="dom-radio-group" id="domRadioGroup">
+          <label><input type="radio" name="domFilter" value="" checked> Any</label>
+          <label><input type="radio" name="domFilter" value="7"> New (0-7d)</label>
+          <label><input type="radio" name="domFilter" value="30"> Recent (0-30d)</label>
+          <label><input type="radio" name="domFilter" value="60"> Moderate (0-60d)</label>
+          <label><input type="radio" name="domFilter" value="90"> Older (0-90d)</label>
+          <label><input type="radio" name="domFilter" value="90+"> Very old (90+d)</label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div id="showMoreContainer" style="text-align:center;margin-top:18px"></div>
+  <div id="emptyState"></div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h3>Settings</h3>
+    <p class="sub">Keys are stored only in this browser (localStorage) and sent directly to Anthropic / Zillapi — never to any third-party server.</p>
+    <div class="field">
+      <label>Anthropic API key</label>
+      <input id="anthropicKey" type="password" placeholder="sk-ant-...">
+      <div class="hint">Used to parse your query and summarize results.</div>
+      <div class="hint" id="anthropicKeyWarning" style="display:none;color:#b45309"></div>
+      <div class="test-row">
+        <button type="button" id="testAnthropic">Test connection</button>
+        <span class="test-result" id="testAnthropicResult"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Claude model</label>
+      <input id="modelName" type="text" placeholder="claude-sonnet-5">
+    </div>
+    <div class="field">
+      <label>Zillapi API key</label>
+      <input id="zillapiKey" type="password" placeholder="zk_...">
+      <div class="hint">Get a free key with 100 credits at zillapi.com/signup</div>
+      <div class="hint" id="zillapiKeyWarning" style="display:none;color:#b45309"></div>
+      <div class="test-row">
+        <button type="button" id="testZillapi">Test connection</button>
+        <span class="test-result" id="testZillapiResult"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Max results per search</label>
+      <input id="maxItems" type="number" min="1" max="50" value="24">
+      <div class="hint">Each listing returned costs 1 Zillapi credit. Zestimate is included free when Zillow has one for that property.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="closeSettings">Cancel</button>
+      <button class="btn-primary" id="saveSettings">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox-overlay" id="lightboxOverlay">
+  <button type="button" class="lightbox-close" id="lightboxClose">&times;</button>
+  <button type="button" class="lightbox-nav lightbox-prev" id="lightboxPrev">&#8592;</button>
+  <img class="lightbox-img" id="lightboxImg" src="" alt="Property photo">
+  <button type="button" class="lightbox-nav lightbox-next" id="lightboxNext">&#8594;</button>
+  <div class="lightbox-counter" id="lightboxCounter"></div>
+</div>
+
+<div class="voice-modal" id="voiceModal">
+  <div class="voice-modal-card">
+    <h3 id="voiceTitle">🎤 Listening...</h3>
+    <p id="voicePrompt">Tell me what kind of home you're looking for</p>
+    <div class="voice-text" id="voiceText"></div>
+    <button type="button" id="voiceCancelBtn">Cancel</button>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'aiHomeSearch.settings.v1';
+
+function loadSettings(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  }catch(e){ return {}; }
+}
+function saveSettingsToStorage(s){ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+let settings = Object.assign({ model: 'claude-sonnet-5', maxItems: 24 }, loadSettings());
+// Self-heal keys that were saved before header sanitization existed.
+if(settings.anthropicKey) settings.anthropicKey = (settings.anthropicKey + '').trim().replace(/[^\x20-\xFF]/g, '');
+if(settings.zillapiKey) settings.zillapiKey = (settings.zillapiKey + '').trim().replace(/[^\x20-\xFF]/g, '');
+saveSettingsToStorage(settings);
+
+const els = {
+  settingsBtn: document.getElementById('settingsBtn'),
+  overlay: document.getElementById('settingsOverlay'),
+  closeSettings: document.getElementById('closeSettings'),
+  saveSettings: document.getElementById('saveSettings'),
+  anthropicKey: document.getElementById('anthropicKey'),
+  zillapiKey: document.getElementById('zillapiKey'),
+  modelName: document.getElementById('modelName'),
+  maxItems: document.getElementById('maxItems'),
+  anthropicKeyWarning: document.getElementById('anthropicKeyWarning'),
+  zillapiKeyWarning: document.getElementById('zillapiKeyWarning'),
+  queryInput: document.getElementById('queryInput'),
+  searchBtn: document.getElementById('searchBtn'),
+  statusLine: document.getElementById('statusLine'),
+  errorBanner: document.getElementById('errorBanner'),
+  fileWarning: document.getElementById('fileWarning'),
+  testAnthropic: document.getElementById('testAnthropic'),
+  testAnthropicResult: document.getElementById('testAnthropicResult'),
+  testZillapi: document.getElementById('testZillapi'),
+  testZillapiResult: document.getElementById('testZillapiResult'),
+  summaryContainer: document.getElementById('summaryContainer'),
+  resultsMeta: document.getElementById('resultsMeta'),
+  grid: document.getElementById('grid'),
+  showMoreContainer: document.getElementById('showMoreContainer'),
+  lightboxOverlay: document.getElementById('lightboxOverlay'),
+  lightboxImg: document.getElementById('lightboxImg'),
+  lightboxClose: document.getElementById('lightboxClose'),
+  lightboxPrev: document.getElementById('lightboxPrev'),
+  lightboxNext: document.getElementById('lightboxNext'),
+  lightboxCounter: document.getElementById('lightboxCounter'),
+  filterBar: document.getElementById('filterBar'),
+  undervaluedFilter: document.getElementById('undervaluedFilter'),
+  domRadioGroup: document.getElementById('domRadioGroup'),
+  emptyState: document.getElementById('emptyState'),
+  voiceBtn: document.getElementById('voiceBtn'),
+  voiceModal: document.getElementById('voiceModal'),
+  voiceTitle: document.getElementById('voiceTitle'),
+  voicePrompt: document.getElementById('voicePrompt'),
+  voiceText: document.getElementById('voiceText'),
+  voiceCancelBtn: document.getElementById('voiceCancelBtn'),
+};
+
+// Track zestimate and days on market for filtering.
+const zestimateCache = {};
+const daysOnMarketCache = {};
+let filterUndervalued = false;
+let filterDaysOnMarket = null; // null = no filter, number = max days, "90+" = 90 or more
+
+function openSettings(){
+  els.anthropicKey.value = settings.anthropicKey || '';
+  els.zillapiKey.value = settings.zillapiKey || '';
+  els.modelName.value = settings.model || 'claude-sonnet-5';
+  els.maxItems.value = settings.maxItems || 24;
+  els.overlay.classList.add('open');
+}
+function closeSettings(){ els.overlay.classList.remove('open'); }
+
+els.settingsBtn.addEventListener('click', openSettings);
+els.closeSettings.addEventListener('click', closeSettings);
+els.overlay.addEventListener('click', (e)=>{ if(e.target === els.overlay) closeSettings(); });
+// HTTP header values are restricted to ISO-8859-1 (Latin-1, code points 0-255).
+// Copy-pasting a key from a webpage/PDF/messaging app often drags along an
+// invisible character outside that range (smart quotes, zero-width spaces,
+// non-breaking spaces) which makes fetch() throw synchronously before any
+// network activity happens at all. Strip those out and tell the user if we did.
+function sanitizeKey(raw){
+  const trimmed = (raw || '').trim();
+  const cleaned = trimmed.replace(/[^\x20-\xFF]/g, '');
+  return { cleaned, hadInvalidChars: cleaned !== trimmed };
+}
+
+function checkKeyField(inputEl, warnEl){
+  const { cleaned, hadInvalidChars } = sanitizeKey(inputEl.value);
+  if(hadInvalidChars){
+    warnEl.style.display = 'block';
+    warnEl.textContent = '⚠ Removed invisible/non-standard character(s) from this key (likely from copy-pasting). If it still doesn\'t work, try retyping it manually.';
+    inputEl.value = cleaned;
+  }else{
+    warnEl.style.display = 'none';
+  }
+  return cleaned;
+}
+
+els.anthropicKey.addEventListener('blur', ()=> checkKeyField(els.anthropicKey, els.anthropicKeyWarning));
+els.zillapiKey.addEventListener('blur', ()=> checkKeyField(els.zillapiKey, els.zillapiKeyWarning));
+
+els.saveSettings.addEventListener('click', ()=>{
+  settings.anthropicKey = checkKeyField(els.anthropicKey, els.anthropicKeyWarning);
+  settings.zillapiKey = checkKeyField(els.zillapiKey, els.zillapiKeyWarning);
+  settings.model = els.modelName.value.trim() || 'claude-sonnet-5';
+  settings.maxItems = Math.max(1, Math.min(50, parseInt(els.maxItems.value,10) || 24));
+  saveSettingsToStorage(settings);
+  closeSettings();
+});
+
+function setTestResult(el, ok, msg){
+  el.textContent = (ok ? '✓ ' : '✗ ') + msg;
+  el.className = 'test-result ' + (ok ? 'ok' : 'fail');
+}
+
+els.testAnthropic.addEventListener('click', async ()=>{
+  const key = checkKeyField(els.anthropicKey, els.anthropicKeyWarning);
+  const model = els.modelName.value.trim() || 'claude-sonnet-5';
+  if(!key){ setTestResult(els.testAnthropicResult, false, 'Enter a key first'); return; }
+  setTestResult(els.testAnthropicResult, true, 'Testing…');
+  els.testAnthropicResult.className = 'test-result';
+  try{
+    const resp = await friendlyFetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, max_tokens: 8, messages: [{ role: 'user', content: 'hi' }] })
+    }, 'Claude / Anthropic API');
+    if(resp.ok){ setTestResult(els.testAnthropicResult, true, 'Connected'); }
+    else{ const d = await resp.json().catch(()=>({})); setTestResult(els.testAnthropicResult, false, d?.error?.message || `HTTP ${resp.status}`); }
+  }catch(err){ setTestResult(els.testAnthropicResult, false, err.message); }
+});
+
+els.testZillapi.addEventListener('click', async ()=>{
+  const key = checkKeyField(els.zillapiKey, els.zillapiKeyWarning);
+  if(!key){ setTestResult(els.testZillapiResult, false, 'Enter a key first'); return; }
+  setTestResult(els.testZillapiResult, true, 'Testing…');
+  els.testZillapiResult.className = 'test-result';
+  try{
+    const resp = await friendlyFetch('https://api.zillapi.com/v1/listings?status=for_sale&bbox=-97.94,30.10,-97.56,30.52&max_items=1', {
+      headers: { 'Authorization': `Bearer ${key}` }
+    }, 'Zillapi');
+    if(resp.ok){ setTestResult(els.testZillapiResult, true, 'Connected'); }
+    else{ const d = await resp.json().catch(()=>({})); setTestResult(els.testZillapiResult, false, d?.error?.message || d?.message || `HTTP ${resp.status}`); }
+  }catch(err){ setTestResult(els.testZillapiResult, false, err.message); }
+});
+
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    els.queryInput.value = chip.dataset.q;
+    runSearch();
+  });
+});
+els.searchBtn.addEventListener('click', runSearch);
+
+function detailsRow(k, v){ return `<div class="row"><span class="k">${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`; }
+function renderDetailsPanel(d, zpid){
+  let html = '';
+  if(d.agentName) html += detailsRow('Agent', d.agentName + (d.agentPhone ? ' · ' + d.agentPhone : ''));
+  if(d.brokerName) html += detailsRow('Brokerage', d.brokerName);
+  if(d.annualTax) html += detailsRow('Annual tax', '$' + d.annualTax.toLocaleString());
+  if(d.hoaFee) html += detailsRow('HOA/mo', '$' + d.hoaFee.toLocaleString());
+  if(d.lotSize) html += detailsRow('Lot size', String(d.lotSize));
+  if(d.rentZestimate) html += detailsRow('Rent Zestimate', '$' + d.rentZestimate.toLocaleString() + '/mo');
+  if(d.schools && d.schools.length){
+    html += `<div class="schools">Schools: ${d.schools.map(s => escapeHtml(s.name) + (s.rating ? ` (${escapeHtml(s.rating)})` : '')).join(', ')}</div>`;
+  }
+  if(d.photos && d.photos.length){
+    html += `<div class="photo-strip">${d.photos.slice(0, 12).map((url, i) =>
+      `<img src="${escapeHtml(url)}" class="photo-thumb" data-zpid="${zpid}" data-idx="${i}" loading="lazy" alt="Photo ${i+1}">`
+    ).join('')}</div>`;
+  }
+  return html || '<div class="empty">No additional details available for this property.</div>';
+}
+
+// Cache fetched full-detail records per zpid so the lightbox can pull the
+// photo list without a second API call.
+const detailsCache = {};
+
+// ---------- Lightbox (view all photos without leaving the app) ----------
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+function updateLightbox(){
+  if(!lightboxPhotos.length) return;
+  els.lightboxImg.src = lightboxPhotos[lightboxIndex];
+  els.lightboxCounter.textContent = `${lightboxIndex + 1} / ${lightboxPhotos.length}`;
+}
+function openLightbox(photos, index){
+  lightboxPhotos = photos;
+  lightboxIndex = index;
+  updateLightbox();
+  els.lightboxOverlay.classList.add('open');
+}
+function closeLightbox(){ els.lightboxOverlay.classList.remove('open'); }
+function lightboxStep(delta){
+  if(!lightboxPhotos.length) return;
+  lightboxIndex = (lightboxIndex + delta + lightboxPhotos.length) % lightboxPhotos.length;
+  updateLightbox();
+}
+els.lightboxClose.addEventListener('click', closeLightbox);
+els.lightboxPrev.addEventListener('click', ()=> lightboxStep(-1));
+els.lightboxNext.addEventListener('click', ()=> lightboxStep(1));
+els.lightboxOverlay.addEventListener('click', (e)=>{ if(e.target === els.lightboxOverlay) closeLightbox(); });
+document.addEventListener('keydown', (e)=>{
+  if(!els.lightboxOverlay.classList.contains('open')) return;
+  if(e.key === 'Escape') closeLightbox();
+  if(e.key === 'ArrowLeft') lightboxStep(-1);
+  if(e.key === 'ArrowRight') lightboxStep(1);
+});
+
+// Shared fetch-and-populate for a listing's full detail record. Used by both
+// the "More details" button and clicking the card photo — either path
+// triggers the same one-time fetch (cached after) and keeps the panel,
+// zestimate line, and button state all in sync regardless of which triggered it.
+async function loadDetailsFor(zpid, panel, btn){
+  if(detailsCache[zpid]) return detailsCache[zpid];
+  const details = await fetchFullDetails(zpid);
+  detailsCache[zpid] = details;
+  if(panel) panel.innerHTML = renderDetailsPanel(details, zpid);
+  if(btn){ btn.dataset.loaded = 'true'; btn.textContent = 'Hide details'; }
+  // Bulk row had no Zestimate, but the full record turned one up — fill it in.
+  const zestSlot = document.getElementById(`zest-${zpid}`);
+  if(zestSlot && zestSlot.classList.contains('zestimate-none') && details.zestimate != null){
+    zestSlot.className = 'zestimate';
+    zestSlot.textContent = 'Zestimate: $' + details.zestimate.toLocaleString();
+  }
+  // Show photo count on the card once details are fetched.
+  const photoBadge = document.getElementById(`photos-${zpid}`);
+  if(photoBadge && details.photos?.length){
+    photoBadge.textContent = `📷 ${details.photos.length} ${details.photos.length === 1 ? 'photo' : 'photos'}`;
+  }
+  // Cache zestimate and days on market for filtering.
+  if(details.zestimate != null) zestimateCache[zpid] = details.zestimate;
+  if(details.daysOnZillow != null) daysOnMarketCache[zpid] = details.daysOnZillow;
+  // Show days on market on both card and details panel.
+  if(details.daysOnZillow != null){
+    const domText = `📅 ${details.daysOnZillow}d`;
+    // Card badge
+    const cardDomBadge = document.getElementById(`dom-${zpid}`);
+    if(cardDomBadge) cardDomBadge.textContent = domText;
+    // Details panel
+    const domDetailBadge = document.createElement('div');
+    domDetailBadge.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:2px';
+    domDetailBadge.textContent = `Listed ${details.daysOnZillow} day${details.daysOnZillow === 1 ? '' : 's'} ago`;
+    const detailsPanel = document.getElementById(`details-${zpid}`);
+    if(detailsPanel) detailsPanel.insertAdjacentElement('beforeend', domDetailBadge);
+  }
+  // Re-apply filter if active, and show filter bar.
+  if(filterUndervalued || filterDaysOnMarket != null) applyFilters();
+  checkShowFilterBar();
+  return details;
+}
+
+// Combined filter: show only properties matching both undervalued AND days-on-market criteria.
+function applyFilters(){
+  document.querySelectorAll('.card').forEach(card => {
+    const zpid = card.dataset.zpid;
+    const price = parseFloat(card.dataset.price);
+    const zest = zestimateCache[zpid];
+    const dom = daysOnMarketCache[zpid];
+
+    let show = true;
+
+    // Undervalued filter: price < zestimate
+    if(filterUndervalued){
+      const isUndervalued = (typeof price === 'number' && typeof zest === 'number' && price < zest);
+      if(!isUndervalued) show = false;
+    }
+
+    // Days on market filter: daysOnZillow <= threshold, or >= 90 for "90+"
+    if(filterDaysOnMarket != null){
+      let meetsDOM = false;
+      if(filterDaysOnMarket === '90+'){
+        meetsDOM = (typeof dom === 'number' && dom >= 90);
+      }else{
+        const threshold = parseInt(filterDaysOnMarket, 10);
+        meetsDOM = (typeof dom === 'number' && dom <= threshold);
+      }
+      if(!meetsDOM) show = false;
+    }
+
+    card.style.display = show ? '' : 'none';
+  });
+}
+
+// Show filter bar if at least one property has price & zestimate or days on market.
+function checkShowFilterBar(){
+  const hasFilters = Array.from(document.querySelectorAll('.card')).some(card => {
+    const zpid = card.dataset.zpid;
+    const price = parseFloat(card.dataset.price);
+    const zest = zestimateCache[zpid];
+    const dom = daysOnMarketCache[zpid];
+    return (typeof price === 'number' && typeof zest === 'number') || (typeof dom === 'number');
+  });
+  els.filterBar.style.display = hasFilters ? 'block' : 'none';
+}
+
+// Wire up filter controls.
+els.undervaluedFilter.addEventListener('change', (e)=>{
+  filterUndervalued = e.target.checked;
+  applyFilters();
+});
+
+els.domRadioGroup.addEventListener('change', (e)=>{
+  if(e.target.name === 'domFilter'){
+    filterDaysOnMarket = e.target.value ? e.target.value : null;
+    applyFilters();
+  }
+});
+
+els.grid.addEventListener('click', async (e)=>{
+  // Clicking a thumbnail inside the (already open) details panel.
+  const photoThumb = e.target.closest('.photo-thumb');
+  if(photoThumb){
+    const photos = detailsCache[photoThumb.dataset.zpid]?.photos || [];
+    if(photos.length) openLightbox(photos, parseInt(photoThumb.dataset.idx, 10) || 0);
+    return;
+  }
+
+  // Clicking the card's own photo — fetch details if needed, then jump
+  // straight to the photo gallery (no need to open "More details" first).
+  const cardThumb = e.target.closest('.thumb.card-thumb');
+  if(cardThumb){
+    const zpid = cardThumb.dataset.zpid;
+    if(!zpid || cardThumb.classList.contains('loading')) return;
+    if(!settings.zillapiKey){ showError('Add your Zillapi key in Settings to view photos.'); return; }
+    const cached = detailsCache[zpid];
+    if(cached){
+      if(cached.photos?.length) openLightbox(cached.photos, 0);
+      return;
+    }
+    cardThumb.classList.add('loading');
+    try{
+      const panel = document.getElementById(`details-${zpid}`);
+      const btn = document.querySelector(`.details-btn[data-zpid="${zpid}"]`);
+      const details = await loadDetailsFor(zpid, panel, btn);
+      if(details.photos?.length){
+        openLightbox(details.photos, 0);
+      }else{
+        setStatus('No additional photos available for this property.', true);
+      }
+    }catch(err){
+      setStatus(err.message || 'Could not load photos.', true);
+    }finally{
+      cardThumb.classList.remove('loading');
+    }
+    return;
+  }
+
+  // Map toggle — no API call at all, since lat/long already came back with
+  // the search results. Builds an embedded OpenStreetMap view (official,
+  // key-free embed) centered on the property, plus a link to the full-size map.
+  const mapBtn = e.target.closest('.map-btn');
+  if(mapBtn){
+    const zpid = mapBtn.dataset.zpid;
+    const mapPanel = document.getElementById(`map-${zpid}`);
+    if(!mapPanel) return;
+    const showing = mapPanel.style.display !== 'none';
+    if(showing){
+      mapPanel.style.display = 'none';
+      mapBtn.textContent = 'Map';
+      return;
+    }
+    if(!mapPanel.dataset.built){
+      const lat = parseFloat(mapBtn.dataset.lat);
+      const lng = parseFloat(mapBtn.dataset.lng);
+      const dLat = 0.004, dLng = 0.006;
+      const bbox = [lng - dLng, lat - dLat, lng + dLng, lat + dLat].join(',');
+      const embedSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+      const fullMapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
+      mapPanel.innerHTML = `<iframe src="${embedSrc}" loading="lazy" title="Map"></iframe><a class="map-link" href="${fullMapUrl}" target="_blank" rel="noopener">Open full map →</a>`;
+      mapPanel.dataset.built = 'true';
+    }
+    mapPanel.style.display = 'block';
+    mapBtn.textContent = 'Hide map';
+    return;
+  }
+
+  // "More details" button — fetches the full record on first click (cached
+  // after), then just toggles the panel open/closed on subsequent clicks.
+  const btn = e.target.closest('.details-btn');
+  if(!btn) return;
+  const zpid = btn.dataset.zpid;
+  const panel = document.getElementById(`details-${zpid}`);
+  if(!zpid || !panel || !settings.zillapiKey) return;
+
+  if(btn.dataset.loaded === 'true'){
+    const showing = panel.style.display !== 'none';
+    panel.style.display = showing ? 'none' : 'flex';
+    btn.textContent = showing ? 'More details' : 'Hide details';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  try{
+    await loadDetailsFor(zpid, panel, btn);
+    panel.style.display = 'flex';
+  }catch(err){
+    panel.innerHTML = `<div class="empty">${escapeHtml(err.message || 'Could not load details.')}</div>`;
+    panel.style.display = 'flex';
+    btn.textContent = 'More details';
+  }finally{
+    btn.disabled = false;
+  }
+});
+els.queryInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') runSearch(); });
+
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function setStatus(msg, isError, isLoading){
+  const spinner = isLoading ? '<span class="spinner spinner-accent"></span>' : '';
+  els.statusLine.innerHTML = spinner + escapeHtml(msg || '');
+  els.statusLine.classList.toggle('error', !!isError);
+}
+function showError(msg){
+  els.errorBanner.innerHTML = `<div class="error-banner">${escapeHtml(msg)}</div>`;
+}
+function clearError(){ els.errorBanner.innerHTML = ''; }
+
+function trimObj(obj){
+  const out = {};
+  for(const k in obj){ if(obj[k] !== null && obj[k] !== undefined && obj[k] !== '') out[k] = obj[k]; }
+  return Object.keys(out).length ? out : undefined;
+}
+
+// "Failed to fetch" is a generic browser network error (CORS block, extension
+// block, offline, DNS failure) — turn it into something actionable per service.
+async function friendlyFetch(url, opts, serviceName){
+  let resp;
+  try{
+    resp = await fetch(url, opts);
+  }catch(err){
+    const host = new URL(url).host;
+    // This specific TypeError is thrown synchronously by the browser while
+    // *building* the request, before any network activity — it means a header
+    // value (almost always the API key) contains a character HTTP headers
+    // can't carry (ISO-8859-1 only). Not a connectivity problem at all.
+    if(/ISO-8859-1|code point/i.test(err.message)){
+      throw new Error(
+        `Your ${serviceName} API key (or another settings field) contains an invisible or special character that HTTP headers can't send — this happens when a key is copy-pasted with smart quotes/hidden characters attached. `
+        + `Go to Settings, click into the field, and it'll auto-clean on blur — then hit Test connection again. If it still fails, retype the key manually instead of pasting it.`
+      );
+    }
+    throw new Error(
+      `Couldn't reach ${serviceName} (${host}). This is a browser-level network error, not a bad response — usually one of: `
+      + `(1) this page was opened as a local file — serve it over http:// instead (see the yellow banner above), `
+      + `(2) an ad-blocker/privacy extension or VPN is blocking requests to ${host}, or `
+      + `(3) you're offline. Original error: ${err.message}`
+    );
+  }
+  return resp;
+}
+
+function isFileProtocol(){ return location.protocol === 'file:'; }
+
+function renderFileWarning(){
+  if(!isFileProtocol()){ els.fileWarning.innerHTML=''; return; }
+  els.fileWarning.innerHTML = `
+    <div class="warn-banner">
+      <span>You opened this as a local file. Some browsers/extensions block API requests from <code>file://</code> pages. If searches fail with "Failed to fetch", serve it instead: <code>python3 -m http.server 8000</code> in this folder, then open <code>http://localhost:8000/ai-home-search.html</code>.</span>
+      <button type="button" id="copyServeCmd">Copy command</button>
+    </div>`;
+  document.getElementById('copyServeCmd')?.addEventListener('click', ()=>{
+    navigator.clipboard?.writeText('python3 -m http.server 8000');
+  });
+}
+renderFileWarning();
+
+// ---------- Voice Search ----------
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let voiceRecognition = null;
+let voiceStep = 0; // 0=initial, 1=asking for price, 2=asking for beds, etc.
+let voiceData = { query: '', location: '', price_max: null, beds_min: null };
+
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utterance);
+}
+
+function closeVoiceModal(){ els.voiceModal.classList.remove('open'); }
+
+function startVoiceRecognition(){
+  if(!SpeechRecognition){
+    showError('Voice search not supported in your browser. Try Chrome, Edge, or Safari.');
+    return;
+  }
+
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.continuous = false;
+  voiceRecognition.interimResults = true;
+  voiceRecognition.lang = 'en-US';
+
+  els.voiceModal.classList.add('open');
+  els.voiceBtn.classList.add('listening');
+
+  let interim = '';
+  voiceRecognition.onresult = (e) => {
+    interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const text = e.results[i][0].transcript;
+      if(e.results[i].isFinal) voiceData.query += text + ' ';
+      else interim += text;
+    }
+    els.voiceText.textContent = (voiceData.query + interim).trim();
+  };
+
+  voiceRecognition.onend = () => {
+    els.voiceBtn.classList.remove('listening');
+    const recognized = voiceData.query.trim();
+
+    if(!recognized){
+      els.voiceTitle.textContent = '❌ Didn\'t catch that';
+      els.voicePrompt.textContent = 'Please try again';
+      setTimeout(() => startVoiceRecognition(), 1500);
+      return;
+    }
+
+    // For now, just populate the search field and run
+    els.queryInput.value = recognized;
+    closeVoiceModal();
+    runSearch();
+  };
+
+  voiceRecognition.onerror = (e) => {
+    els.voiceBtn.classList.remove('listening');
+    els.voiceTitle.textContent = '❌ Error';
+    els.voicePrompt.textContent = e.error === 'no-speech' ? 'No speech detected. Try again.' : 'Error: ' + e.error;
+  };
+
+  speak('Tell me what kind of home you\'re looking for');
+};
+
+els.voiceBtn.addEventListener('click', startVoiceRecognition);
+els.voiceCancelBtn.addEventListener('click', () => {
+  if(voiceRecognition) voiceRecognition.abort();
+  els.voiceBtn.classList.remove('listening');
+  voiceData = { query: '', location: '', price_max: null, beds_min: null };
+  closeVoiceModal();
+});
+
+// ---------- Step 1: Claude extracts structured filters ----------
+const FILTER_TOOL = {
+  name: 'extract_search_filters',
+  description: 'Extract structured real-estate search filters from a natural-language query about homes to buy or rent.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      location: { type: 'string', description: 'A US city/state, ZIP code, or neighborhood suitable for geocoding. Always give your best-guess specific place, even if the query is vague (default to a well-known US city if truly unspecified).' },
+      bbox_west: { type: 'number', description: 'Your best-guess bounding box for "location", in decimal degrees, using your own geographic knowledge (no lookup needed) — westmost longitude. Cover roughly the whole city/metro area, not just a point. Required.' },
+      bbox_south: { type: 'number', description: 'Bounding box southmost latitude. Required.' },
+      bbox_east: { type: 'number', description: 'Bounding box eastmost longitude. Required.' },
+      bbox_north: { type: 'number', description: 'Bounding box northmost latitude. Required.' },
+      status: { type: 'string', enum: ['for_sale','for_rent','sold'], description: 'Defaults to for_sale unless renting or recently-sold/comps is implied.' },
+      price_min: { type: 'integer' },
+      price_max: { type: 'integer' },
+      beds_min: { type: 'integer' },
+      beds_max: { type: 'integer' },
+      baths_min: { type: 'integer' },
+      baths_max: { type: 'integer' },
+      sqft_min: { type: 'integer' },
+      sqft_max: { type: 'integer' },
+      year_built_min: { type: 'integer' },
+      year_built_max: { type: 'integer' },
+      home_types: { type: 'array', items: { type: 'string', enum: ['house','condo','townhouse','multi_family','manufactured','lot','apartment'] } },
+      has_pool: { type: 'boolean' },
+      has_garage: { type: 'boolean' },
+      is_waterfront: { type: 'boolean' },
+      days_on_zillow: { type: 'string', enum: ['1','7','14','30','90','6m','12m','24m','36m'] }
+    },
+    required: ['location','bbox_west','bbox_south','bbox_east','bbox_north','status']
+  }
+};
+
+async function callClaude(body){
+  const resp = await friendlyFetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': settings.anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  }, 'Claude / Anthropic API');
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok){
+    throw new Error(data?.error?.message || `Claude API error (${resp.status})`);
+  }
+  return data;
+}
+
+async function extractFilters(query){
+  const data = await callClaude({
+    model: settings.model,
+    max_tokens: 1024,
+    system: 'You convert natural-language real estate search queries into structured filters by calling the extract_search_filters tool. Only include fields the user actually implied; omit anything unspecified. Interpret relative terms ("cheap", "starter home", "luxury") into reasonable numeric ranges.',
+    tools: [FILTER_TOOL],
+    tool_choice: { type: 'tool', name: 'extract_search_filters' },
+    messages: [{ role: 'user', content: query }]
+  });
+  const toolUse = (data.content || []).find(c => c.type === 'tool_use');
+  if(!toolUse) throw new Error('Claude did not return structured filters. Try rephrasing your search.');
+  return toolUse.input;
+}
+
+// ---------- Step 2: bounding box for the location ----------
+// Prefer Claude's own geographic knowledge (no extra network call, one less
+// thing that can fail) and only fall back to the free geocoder if Claude's
+// estimate is missing or clearly bogus (e.g. outside real lat/long ranges).
+function bboxFromFilters(filters){
+  const { bbox_west: w, bbox_south: s, bbox_east: e, bbox_north: n } = filters;
+  const nums = [w, s, e, n];
+  if(nums.some(v => typeof v !== 'number' || Number.isNaN(v))) return null;
+  if(s < -90 || n > 90 || s >= n) return null;
+  if(w < -180 || e > 180 || w >= e) return null;
+  return padBbox({ west: w, south: s, east: e, north: n }, 0.06);
+}
+
+async function geocode(location){
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(location)}`;
+  const resp = await friendlyFetch(url, { headers: { 'Accept-Language': 'en' } }, 'the geocoding service (OpenStreetMap)');
+  if(!resp.ok) throw new Error('Could not look up that location.');
+  const arr = await resp.json();
+  if(!arr || !arr.length) throw new Error(`Couldn't find "${location}" on the map. Try a more specific city/state or ZIP.`);
+  const [south, north, west, east] = arr[0].boundingbox.map(Number);
+  const displayName = arr[0].display_name || location;
+  setStatus(`Found: ${displayName}`, false, true);
+  // Use larger padding (0.15 ≈ 10+ miles) for address searches to catch nearby listings with variant spellings
+  return padBbox({ south, north, west, east }, 0.15);
+}
+function padBbox(bb, minSpan){
+  let { south, north, west, east } = bb;
+  if((north - south) < minSpan){ const c=(north+south)/2; south=c-minSpan/2; north=c+minSpan/2; }
+  if((east - west) < minSpan){ const c=(east+west)/2; west=c-minSpan/2; east=c+minSpan/2; }
+  return { south, north, west, east };
+}
+
+// ---------- Step 3: query Zillapi ----------
+async function searchZillapi(filters, bbox){
+  const endpointByStatus = { for_sale: 'for-sale', for_rent: 'for-rent', sold: 'sold' };
+  const endpoint = `https://api.zillapi.com/v1/listings/${endpointByStatus[filters.status] || 'for-sale'}`;
+
+  const body = {
+    filters: trimObj({
+      bbox: { west: bbox.west, south: bbox.south, east: bbox.east, north: bbox.north },
+      location: filters.location,
+      price: trimObj({ min: filters.price_min, max: filters.price_max }),
+      beds: trimObj({ min: filters.beds_min, max: filters.beds_max }),
+      baths: trimObj({ min: filters.baths_min, max: filters.baths_max }),
+      sqft: trimObj({ min: filters.sqft_min, max: filters.sqft_max }),
+      yearBuilt: trimObj({ min: filters.year_built_min, max: filters.year_built_max }),
+      homeTypes: (filters.home_types && filters.home_types.length) ? filters.home_types : undefined,
+      daysOnZillow: filters.days_on_zillow,
+      hasPool: filters.has_pool,
+      hasGarage: filters.has_garage,
+      isWaterfront: filters.is_waterfront
+    }),
+    maxItems: settings.maxItems || 24
+  };
+
+  const resp = await friendlyFetch(endpoint, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${settings.zillapiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  }, 'Zillapi');
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok){
+    const msg = data?.error?.message || data?.message || `Zillapi error (${resp.status})`;
+    throw new Error(msg);
+  }
+  return data.data || [];
+}
+
+// ---------- Step 3b: on-demand full property detail ----------
+// The full detail record (GET /v1/properties/{zpid}) is the single call that
+// returns everything not in the lightweight search row at once: Zestimate,
+// listing agent/broker contact, tax, HOA, lot size, and schools. One card,
+// one click, one credit — rather than a separate call per field. Field paths
+// are read defensively since Zillapi's schema isn't fully documented; any
+// field that isn't present for a given property is just omitted, not guessed.
+// Confirmed against a real Zillapi response (2026-07-24): Zillapi appends its
+// own normalized, clean fields at the end of the payload — agent/broker as
+// proper objects, taxAnnualAmount and monthlyHoaFee as real numbers, and
+// nearbySchools as a clean array. Prefer those over the raw Zillow internals
+// (resoFacts, attributionInfo, "schools") mixed into the rest of the record,
+// where types are inconsistent (e.g. resoFacts.hoaFee is the STRING
+// "$280 monthly", not a number) — those are only used as a fallback.
+function normalizeFullDetails(raw){
+  const d = raw?.data ?? raw ?? {};
+  const num = v => (typeof v === 'number' && v > 0) ? v : null;
+  const schoolsSrc = Array.isArray(d.nearbySchools) ? d.nearbySchools : (Array.isArray(d.schools) ? d.schools : []);
+  return {
+    zestimate: num(d.zestimate),
+    rentZestimate: num(d.rentZestimate),
+    agentName: d.agent?.name ?? d.attributionInfo?.agentName ?? null,
+    agentPhone: d.agent?.phoneNumber ?? d.attributionInfo?.agentPhoneNumber ?? null,
+    brokerName: d.broker?.name ?? d.attributionInfo?.brokerName ?? null,
+    annualTax: num(d.taxAnnualAmount ?? d.taxAssessedValue),
+    hoaFee: num(d.monthlyHoaFee ?? d.hoa?.fee),
+    lotSize: d.lotArea?.formatted ?? null,
+    daysOnZillow: (typeof d.daysOnZillow === 'number') ? d.daysOnZillow : null,
+    schools: schoolsSrc.slice(0, 3).map(s => ({ name: s.name, rating: s.rating })).filter(s => s.name),
+    photos: Array.isArray(d.listingPhotos)
+      ? d.listingPhotos.map(p => p.url).filter(Boolean)
+      : (d.mainImage?.medium ? [d.mainImage.medium] : [])
+  };
+}
+
+async function fetchFullDetails(zpid){
+  const resp = await friendlyFetch(`https://api.zillapi.com/v1/properties/${zpid}`, {
+    headers: { 'Authorization': `Bearer ${settings.zillapiKey}` }
+  }, 'Zillapi (property detail)');
+  if(!resp.ok){
+    const data = await resp.json().catch(()=>({}));
+    throw new Error(data?.error?.message || data?.message || `Zillapi error (${resp.status})`);
+  }
+  const data = await resp.json().catch(()=>({}));
+  return normalizeFullDetails(data);
+}
+
+// ---------- Step 4: Claude summarizes results ----------
+async function summarizeResults(query, listings){
+  if(!listings.length) return null;
+  const condensed = listings.slice(0, 30).map(l => ({
+    address: l.address, city: l.addressCity, price: l.unformattedPrice ?? l.price,
+    zestimate: getZestimate(l),
+    beds: l.beds, baths: l.baths, sqft: l.area, status: l.statusType
+  }));
+  const data = await callClaude({
+    model: settings.model,
+    max_tokens: 300,
+    system: 'You are a helpful real-estate assistant. Given a user search and a list of matching properties, write a concise 2-4 sentence summary highlighting price range, notable standouts (best value, largest, newest, priced well below its Zestimate when that data is present), and any patterns. Plain prose, no markdown, no bullet points.',
+    messages: [{ role: 'user', content: `User searched: "${query}"\n\nResults (JSON):\n${JSON.stringify(condensed)}` }]
+  });
+  const textBlock = (data.content || []).find(c => c.type === 'text');
+  return textBlock ? textBlock.text : null;
+}
+
+// ---------- Rendering ----------
+function renderSummary(text){
+  if(!text){ els.summaryContainer.innerHTML = ''; return; }
+  els.summaryContainer.innerHTML = `
+    <div class="summary-card">
+      <div class="label">✦ AI summary</div>
+      <p>${escapeHtml(text)}</p>
+    </div>`;
+}
+
+function fmtPrice(l){
+  if(typeof l.price === 'string' && l.price) return l.price;
+  if(typeof l.unformattedPrice === 'number') return '$' + l.unformattedPrice.toLocaleString();
+  return 'Price N/A';
+}
+
+// Zestimate isn't always in the lightweight search/listing row (it's guaranteed
+// on the full /v1/properties/{zpid} detail call) — check the few places it
+// shows up when it is present, and just omit the line when it isn't.
+function getZestimate(l){
+  const z = l.zestimate ?? l.hdpData?.homeInfo?.zestimate ?? l.hdpData?.zestimate ?? null;
+  return (typeof z === 'number' && z > 0) ? z : null;
+}
+function fmtZestimate(l){
+  const z = getZestimate(l);
+  return z != null ? '$' + z.toLocaleString() : null;
+}
+
+const RESULTS_PAGE_SIZE = 9;
+let pagedListings = [];
+let pagedGeo = null;
+let pagedVisibleCount = 0;
+
+// The bulk search/listings row carries a small preview photo the same way
+// Zillow's own search cards do — check the couple of shapes that's likely to
+// show up as (miniCardPhotos is confirmed present on the sibling "similar
+// homes" rows inside the full detail response, so the main search rows very
+// plausibly carry the same field).
+function getThumbPhoto(l){
+  return l.miniCardPhotos?.[0]?.url
+    || l.photos?.[0]?.url
+    || l.hdpData?.homeInfo?.miniCardPhotos?.[0]?.url
+    || null;
+}
+
+// Lat/long already comes back on every bulk search row (no extra Zillapi
+// call or credit needed for a map — unlike Zestimate/photos/agent info).
+function getLatLng(l){
+  const lat = l.latLong?.latitude ?? l.latitude ?? null;
+  const lng = l.latLong?.longitude ?? l.longitude ?? null;
+  return (typeof lat === 'number' && typeof lng === 'number') ? { lat, lng } : null;
+}
+
+function buildCard(l){
+  const card = document.createElement('div');
+  card.className = 'card';
+  const addrLine = [l.address, l.addressCity, l.addressState].filter(Boolean).join(', ');
+  const zpid = l.zpid;
+  const link = zpid ? `https://www.zillow.com/homedetails/${zpid}_zpid/` : null;
+  const zest = fmtZestimate(l);
+  const zestSlot = zest
+    ? `<div class="zestimate" id="zest-${zpid}">Zestimate: ${escapeHtml(zest)}</div>`
+    : `<div class="zestimate-none" id="zest-${zpid}">No Zestimate available</div>`;
+  const thumbPhoto = getThumbPhoto(l);
+  const thumbInner = thumbPhoto ? `<img src="${escapeHtml(thumbPhoto)}" alt="Photo of ${escapeHtml(addrLine || 'property')}" loading="lazy">` : '⌂';
+  const latlng = getLatLng(l);
+  // Store price for undervalued filter comparison.
+  card.dataset.zpid = zpid;
+  card.dataset.price = l.price ?? null;
+  card.innerHTML = `
+    <div class="thumb${zpid ? ' card-thumb' : ''}" ${zpid ? `data-zpid="${zpid}"` : ''}>${thumbInner}</div>
+    <div class="body">
+      <span class="badge">${escapeHtml(l.statusType || l.homeStatus || '')}</span>
+      ${zpid ? `<span class="photo-badge" id="photos-${zpid}"></span><span class="dom-badge" id="dom-${zpid}"></span>` : ''}
+      <div class="price">${escapeHtml(fmtPrice(l))}</div>
+      ${zestSlot}
+      <div class="addr">${escapeHtml(addrLine || 'Address unavailable')}</div>
+      <div class="facts">
+        ${l.beds!=null?`<span>${escapeHtml(l.beds)} bd</span>`:''}
+        ${l.baths!=null?`<span>${escapeHtml(l.baths)} ba</span>`:''}
+        ${l.area!=null?`<span>${escapeHtml(l.area)} sqft</span>`:''}
+      </div>
+      <div class="details-panel" id="details-${zpid}" style="display:none"></div>
+      <div class="map-panel" id="map-${zpid}" style="display:none"></div>
+      <div class="card-actions">
+        ${zpid ? `<button type="button" class="details-btn" data-zpid="${zpid}">More details</button>` : ''}
+        ${latlng ? `<button type="button" class="map-btn" data-zpid="${zpid}" data-lat="${latlng.lat}" data-lng="${latlng.lng}">Map</button>` : ''}
+      </div>
+      ${link ? `<a class="view" href="${link}" target="_blank" rel="noopener">View on Zillow →</a>` : ''}
+    </div>`;
+  return card;
+}
+
+function renderShowMoreButton(){
+  const remaining = pagedListings.length - pagedVisibleCount;
+  if(remaining <= 0){ els.showMoreContainer.innerHTML = ''; return; }
+  els.showMoreContainer.innerHTML = `<button type="button" class="show-more-btn" id="showMoreBtn">Show ${Math.min(RESULTS_PAGE_SIZE, remaining)} more (${remaining} left)</button>`;
+  document.getElementById('showMoreBtn').addEventListener('click', ()=>{
+    const nextCount = Math.min(pagedVisibleCount + RESULTS_PAGE_SIZE, pagedListings.length);
+    const frag = document.createDocumentFragment();
+    for(let i = pagedVisibleCount; i < nextCount; i++) frag.appendChild(buildCard(pagedListings[i]));
+    els.grid.appendChild(frag);
+    pagedVisibleCount = nextCount;
+    renderShowMoreButton();
+  });
+}
+
+function renderResults(listings, geo){
+  els.grid.innerHTML = '';
+  els.emptyState.innerHTML = '';
+  els.showMoreContainer.innerHTML = '';
+  pagedListings = listings;
+  pagedGeo = geo;
+  pagedVisibleCount = 0;
+  if(!listings.length){
+    els.resultsMeta.innerHTML = '';
+    els.emptyState.innerHTML = `<div class="empty-state"><div class="big">🔍</div>No listings matched. Try widening the price range or a nearby area.</div>`;
+    return;
+  }
+  els.resultsMeta.innerHTML = `<div class="results-meta"><span>${listings.length} result${listings.length===1?'':'s'} near ${escapeHtml(geo?.displayName || '')}</span></div>`;
+  pagedVisibleCount = Math.min(RESULTS_PAGE_SIZE, listings.length);
+  const frag = document.createDocumentFragment();
+  for(let i = 0; i < pagedVisibleCount; i++) frag.appendChild(buildCard(listings[i]));
+  els.grid.appendChild(frag);
+  renderShowMoreButton();
+}
+
+function renderSkeleton(){
+  els.grid.innerHTML = '';
+  els.emptyState.innerHTML = '';
+  els.resultsMeta.innerHTML = '';
+  els.showMoreContainer.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for(let i=0;i<6;i++){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="thumb skeleton"></div><div class="body"><div class="skeleton" style="height:14px;width:60%;border-radius:6px"></div><div class="skeleton" style="height:12px;width:80%;border-radius:6px"></div></div>`;
+    frag.appendChild(card);
+  }
+  els.grid.appendChild(frag);
+}
+
+// Detect if query is a zpid, MLS number, or address (skip Claude NLP).
+function detectDirectSearch(query){
+  const trimmed = query.trim();
+  // zpid format: just digits, or "zpid 123456" / "zpid: 123456"
+  if(/^\d+$/.test(trimmed) || /^zpid\s*:?\s*\d+/i.test(trimmed)){
+    const zpidMatch = /\d+/.exec(trimmed);
+    return { type: 'zpid', value: zpidMatch[0] };
+  }
+  // MLS format: #123456 or "MLS 123456"
+  if(/^#?\s*mls\s*\d+/i.test(trimmed)){
+    return { type: 'mls', value: trimmed };
+  }
+  // Address format: contains street keywords or zip code
+  const addressKeywords = /\b(street|st|avenue|ave|road|rd|drive|dr|lane|ln|court|ct|circle|cir|blvd|boulevard|way|parkway|terrace|trail|plaza|square|pass|pike|point|pointe|heights|highland|hollow|hill|farm|field|forest|fork|forge|garden|gate|glen|golf|gorge|grove|growth|grove|gulf|gully|harbor|haven|heath|heights|hillside|hogan|hollow|home|hood|horizon|hotsprings|house|housing|hub|hunt|hunting|hurrah|hursts|hyde|iaido|ice|icholas|icon|idea|ides|idle|idyll|ignatius|ignatius|iguana|ikebana|iliad|iliad|ilia|ilia|ilex|ilka|ilka|ilka|ill|ilk|ilka|iamb|iamb|iambus|iamb|iamb)\b/i.test(trimmed) ||
+         /\b\d{5}(-\d{4})?\b/.test(trimmed); // zip code
+  return null;
+}
+
+// ---------- Direct zpid lookup ----------
+async function fetchByZpid(zpid){
+  setStatus(`Loading property ${zpid}…`, false, true);
+  const details = await fetchFullDetails(zpid);
+
+  // Build a minimal listing object from the detail record
+  const listing = {
+    zpid,
+    address: details.agentName ? 'Property' : 'Unknown',
+    statusType: 'For Sale',
+    unformattedPrice: details.annualTax ? Math.round(details.annualTax * 15) : null, // Placeholder
+    beds: null,
+    baths: null,
+    area: null,
+    ...details // Include all fetched detail fields
+  };
+
+  return [listing];
+}
+
+// ---------- Main flow ----------
+async function runSearch(){
+  const query = els.queryInput.value.trim();
+  clearError();
+  els.summaryContainer.innerHTML = '';
+  if(!query){ setStatus('Type what you\'re looking for first.', true); return; }
+  if(!settings.anthropicKey || !settings.zillapiKey){
+    showError('Add your Anthropic and Zillapi API keys in Settings (⚙) to run a search.');
+    openSettings();
+    return;
+  }
+
+  // Check for zpid, MLS, or direct address search
+  const directSearch = detectDirectSearch(query);
+  if(directSearch && directSearch.type === 'mls'){
+    showError('MLS search not yet supported — try searching by zpid or address instead.');
+    return;
+  }
+
+  els.searchBtn.disabled = true;
+  els.searchBtn.innerHTML = '<span class="spinner"></span>Searching…';
+  renderSkeleton();
+
+  try{
+    let listings;
+    let displayName = '';
+
+    if(directSearch && directSearch.type === 'zpid'){
+      // Direct zpid lookup
+      setStatus('', false, false);
+      listings = await fetchByZpid(directSearch.value);
+      displayName = `Property ${directSearch.value}`;
+    }else if(directSearch && directSearch.type === 'address'){
+      // Direct address search — skip Claude, use query as location
+      setStatus('Reading your query…', false, true);
+      const filters = { status: 'for_sale', location: query };
+      let bbox = bboxFromFilters(filters);
+      if(!bbox){
+        setStatus(`Locating "${filters.location}"…`, false, true);
+        bbox = await geocode(filters.location);
+      }
+      setStatus('Searching Zillapi listings…', false, true);
+      listings = await searchZillapi(filters, bbox);
+      displayName = filters.location;
+    }else{
+      // Natural language search — use Claude
+      setStatus('Reading your query…', false, true);
+      const filters = await extractFilters(query);
+      let bbox = bboxFromFilters(filters);
+      if(!bbox){
+        setStatus(`Locating "${filters.location}"…`, false, true);
+        bbox = await geocode(filters.location);
+      }
+      setStatus('Searching Zillapi listings…', false, true);
+      listings = await searchZillapi(filters, bbox);
+      displayName = filters.location;
+    }
+
+    setStatus(listings.length ? 'Summarizing results…' : '', false, listings.length > 0);
+    const [summary] = await Promise.all([ summarizeResults(query, listings) ]);
+
+    renderSummary(summary);
+    renderResults(listings, { displayName });
+    setStatus(`Done — ${listings.length} result${listings.length===1?'':'s'}.`);
+  }catch(err){
+    els.grid.innerHTML = '';
+    els.resultsMeta.innerHTML = '';
+    els.showMoreContainer.innerHTML = '';
+    setStatus('', false);
+    showError(err.message || 'Something went wrong.');
+  }finally{
+    els.searchBtn.disabled = false;
+    els.searchBtn.textContent = 'Search';
+  }
+}
+
+// Open settings on first load if keys are missing
+if(!settings.anthropicKey || !settings.zillapiKey){
+  setStatus('Add your API keys to get started.');
+}
+</script>
+</body>
+</html>
